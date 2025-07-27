@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { MessageCircle, Mic, User, Bot, Volume2, Brain } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { MessageCircle, Mic, User, Volume2, Brain } from 'lucide-react';
 import { useInventoryStore } from '../store/inventoryStore';
 import { clsx } from 'clsx';
 

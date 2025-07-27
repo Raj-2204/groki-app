@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Loader2, Mic, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Loader2, Mic, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx } from 'clsx';
 

@@ -1,7 +1,6 @@
 import React from 'react';
-import { Trash2, Package, AlertTriangle, Apple, Beef, Milk, Wheat, Salad, Star } from 'lucide-react';
+import { Trash2, Package, AlertTriangle, Apple, Beef, Milk, Wheat, Salad } from 'lucide-react';
 import { useInventoryStore } from '../store/inventoryStore';
-import { clsx } from 'clsx';
 
 const categoryIcons: Record<string, React.ComponentType<any>> = {
   'Fruits': Apple,
