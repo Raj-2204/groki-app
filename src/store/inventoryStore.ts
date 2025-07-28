@@ -15,6 +15,7 @@ interface InventoryStore {
   loadMessages: () => Promise<void>;
   addItem: (name: string, quantity: number, unit: string) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
+  reduceItemQuantity: (name: string, quantity?: number) => Promise<void>;
   updateItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
   findItemByName: (name: string) => InventoryItem | undefined;
   
@@ -211,6 +212,61 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
+  reduceItemQuantity: async (name: string, quantity?: number) => {
+    const { user_id, findItemByName } = get();
+    if (!user_id) return;
+    
+    const existingItem = findItemByName(name);
+    if (!existingItem) {
+      throw new Error(`Item "${name}" not found in inventory`);
+    }
+
+    const reduceBy = quantity || existingItem.quantity; // If no quantity specified, remove all
+    const newQuantity = existingItem.quantity - reduceBy;
+
+    try {
+      if (newQuantity <= 0) {
+        // Remove item completely if quantity becomes 0 or negative
+        const { error } = await supabase
+          .from('user_inventory')
+          .delete()
+          .eq('id', existingItem.id)
+          .eq('user_id', user_id);
+        
+        if (error) throw error;
+        
+        // Update local state
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== existingItem.id),
+        }));
+      } else {
+        // Update quantity
+        const { error } = await supabase
+          .from('user_inventory')
+          .update({ 
+            quantity: newQuantity,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingItem.id)
+          .eq('user_id', user_id);
+        
+        if (error) throw error;
+        
+        // Update local state
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === existingItem.id
+              ? { ...item, quantity: newQuantity, updatedAt: new Date() }
+              : item
+          ),
+        }));
+      }
+    } catch (error) {
+      console.error('Error reducing item quantity:', error);
+      throw error;
+    }
+  },
+
   updateItem: async (id: string, updates: Partial<InventoryItem>) => {
     const { user_id } = get();
     if (!user_id) return;
@@ -249,10 +305,44 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   findItemByName: (name: string) => {
-    return get().items.find((item) =>
-      item.name.toLowerCase().includes(name.toLowerCase()) ||
-      name.toLowerCase().includes(item.name.toLowerCase())
-    );
+    const searchName = name.toLowerCase().trim();
+    
+    // Helper function to get singular/plural variants
+    const getVariants = (word: string): string[] => {
+      const variants = [word];
+      
+      // Add plural if word doesn't end in 's'
+      if (!word.endsWith('s')) {
+        variants.push(word + 's');
+        variants.push(word + 'es'); // for words like tomato -> tomatoes
+      }
+      
+      // Add singular if word ends in 's'
+      if (word.endsWith('s') && word.length > 1) {
+        variants.push(word.slice(0, -1));
+      }
+      
+      // Handle special cases
+      if (word.endsWith('oes')) {
+        variants.push(word.slice(0, -2)); // tomatoes -> tomato
+      }
+      
+      return variants;
+    };
+    
+    const searchVariants = getVariants(searchName);
+    
+    return get().items.find((item) => {
+      const itemName = item.name.toLowerCase();
+      const itemVariants = getVariants(itemName);
+      
+      // Check if any search variant matches any item variant
+      return searchVariants.some(sv => 
+        itemVariants.some(iv => 
+          sv === iv || sv.includes(iv) || iv.includes(sv)
+        )
+      );
+    });
   },
 
   addMessage: async (content: string, isUser: boolean, isVoice?: boolean) => {

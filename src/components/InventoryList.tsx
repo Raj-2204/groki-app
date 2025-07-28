@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Package, AlertTriangle, Apple, Beef, Milk, Wheat, Salad } from 'lucide-react';
+import { Trash2, Package, AlertTriangle, Apple, Beef, Milk, Wheat, Salad, Edit3, Calendar, Hash } from 'lucide-react';
 import { useInventoryStore } from '../store/inventoryStore';
 
 const categoryIcons: Record<string, React.ComponentType<any>> = {
@@ -8,137 +8,229 @@ const categoryIcons: Record<string, React.ComponentType<any>> = {
   'Dairy': Milk,
   'Meat': Beef,
   'Grains': Wheat,
+  'Pantry': Package,
   'Other': Package,
 };
 
 const categoryColors: Record<string, string> = {
-  'Fruits': 'from-red-400 to-orange-400',
-  'Vegetables': 'from-green-400 to-emerald-400',
-  'Dairy': 'from-blue-400 to-cyan-400',
-  'Meat': 'from-red-500 to-red-600',
-  'Grains': 'from-yellow-400 to-amber-400',
-  'Other': 'from-gray-400 to-gray-500',
+  'Fruits': 'bg-green-100 text-green-800 border-green-200',
+  'Vegetables': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'Dairy': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Meat': 'bg-red-100 text-red-800 border-red-200',
+  'Grains': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Pantry': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Other': 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
 export function InventoryList() {
-  const { items, removeItem, getItemCount } = useInventoryStore();
+  const { items, removeItem, loading } = useInventoryStore();
 
-  const groupedItems = items.reduce((acc, item) => {
-    const category = item.category || 'Other';
-    if (!acc[category]) {
-      acc[category] = [];
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      await removeItem(id);
     }
-    acc[category].push(item);
-    return acc;
-  }, {} as Record<string, typeof items>);
-
-  const categories = Object.keys(groupedItems).sort();
-
-  if (items.length === 0) {
-    return (
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 p-8 text-center hover:shadow-2xl transition-all duration-300">
-        <div className="bg-gradient-to-r from-gray-100 to-gray-200 p-6 rounded-2xl mb-6 inline-block">
-          <Package className="w-16 h-16 text-gray-400 mx-auto animate-float" />
-        </div>
-        <h3 className="text-xl font-bold text-gray-700 mb-3">Your inventory is empty</h3>
-        <p className="text-gray-500 leading-relaxed">
-          Start building your grocery list by using voice commands!<br />
-          <span className="text-sm text-primary-600 font-medium">Try saying "Add 3 apples"</span>
-        </p>
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300">
-      {/* Enhanced Header */}
-      <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500 text-white px-8 py-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-        <div className="relative flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold mb-1">My Inventory</h2>
-            <p className="text-primary-100 text-sm">{getItemCount()} items in your pantry</p>
+    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
+      {/* Compact Header */}
+      <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500 text-white px-3 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="bg-white/20 p-1 rounded-lg">
+              <Package className="w-3 h-3" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Grocery Inventory</h3>
+              <p className="text-primary-100 text-xs">
+                {items.length} {items.length === 1 ? 'item' : 'items'} in pantry
+              </p>
+            </div>
           </div>
-          <div className="bg-white/20 p-3 rounded-2xl">
-            <Package className="w-6 h-6 text-white" />
+          <div className="bg-white/20 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-medium">{items.length}</span>
           </div>
         </div>
       </div>
 
-      {/* Enhanced Item List */}
-      <div className="max-h-96 overflow-y-auto custom-scrollbar">
-        {categories.map((category, categoryIndex) => {
-          const IconComponent = categoryIcons[category] || Package;
-          const colorClass = categoryColors[category] || categoryColors['Other'];
-          
-          return (
-            <div 
-              key={category} 
-              className="border-b border-gray-100 last:border-b-0 animate-fade-in"
-              style={{ animationDelay: `${categoryIndex * 0.1}s` }}
-            >
-              {/* Category Header */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-4">
-                <div className="flex items-center space-x-3">
-                  <div className={`bg-gradient-to-r ${colorClass} p-2 rounded-xl shadow-md`}>
-                    <IconComponent className="w-4 h-4 text-white" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-800">{category}</h3>
-                  <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
-                    {groupedItems[category].length}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Items */}
-              <div className="divide-y divide-gray-50">
-                {groupedItems[category].map((item, itemIndex) => (
-                  <div 
-                    key={item.id} 
-                    className="group px-8 py-4 flex items-center justify-between hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300 animate-slide-up"
-                    style={{ animationDelay: `${(categoryIndex * 0.1) + (itemIndex * 0.05)}s` }}
-                  >
-                    <div className="flex items-center space-x-4">
-                      {/* Low Stock Warning */}
-                      {item.isLowStock && (
-                        <div className="bg-yellow-100 p-1.5 rounded-lg">
-                          <AlertTriangle className="w-4 h-4 text-yellow-600 animate-pulse" />
+      {/* Table Container */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent"></div>
+            <span className="ml-3 text-gray-600">Loading inventory...</span>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12 px-8">
+            <div className="bg-gray-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Package className="w-8 h-8 text-gray-400" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">No items yet</h4>
+            <p className="text-gray-600 mb-4">
+              Start adding items to your inventory using voice commands
+            </p>
+            <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
+              <p className="text-primary-700 text-sm font-medium">
+                💡 Try saying: "Hey Google, add 3 apples to my list"
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-x-auto overflow-y-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Added
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {items.map((item, index) => {
+                  const IconComponent = categoryIcons[item.category || 'Other'];
+                  const categoryColor = categoryColors[item.category || 'Other'];
+                  const isLowStock = item.isLowStock || item.quantity <= 1;
+                  
+                  return (
+                    <tr 
+                      key={item.id} 
+                      className="hover:bg-gray-50 transition-colors duration-200 group"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      {/* Item Name & Icon */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg ${categoryColor.split(' ')[0]} ${categoryColor.split(' ')[0].replace('100', '200')}`}>
+                            <IconComponent className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 capitalize">
+                              {item.name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {item.unit}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      
-                      {/* Item Info */}
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900 capitalize group-hover:text-primary-700 transition-colors">
-                          {item.name}
-                        </p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-                            {item.quantity} {item.unit}
+                      </td>
+
+                      {/* Category */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${categoryColor}`}>
+                          {item.category || 'Other'}
+                        </span>
+                      </td>
+
+                      {/* Quantity */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <Hash className="w-4 h-4 text-gray-400" />
+                          <span className={`text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-gray-900'}`}>
+                            {item.quantity}
                           </span>
-                          {item.isLowStock && (
-                            <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full font-medium">
+                        </div>
+                      </td>
+
+                      {/* Date Added */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {formatDate(item.createdAt)}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isLowStock ? (
+                          <div className="flex items-center space-x-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-500" />
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
                               Low Stock
                             </span>
-                          )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                            In Stock
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <button
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                            title="Edit item"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            title="Delete item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="opacity-0 group-hover:opacity-100 bg-red-100 hover:bg-red-200 p-2 rounded-xl transition-all duration-200 hover:scale-110"
-                      title="Remove item"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
-                  </div>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Statistics */}
+      {items.length > 0 && (
+        <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-gray-600">
+                  {items.filter(item => !item.isLowStock && item.quantity > 1).length} In Stock
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                <span className="text-gray-600">
+                  {items.filter(item => item.isLowStock || item.quantity <= 1).length} Low Stock
+                </span>
               </div>
             </div>
-          );
-        })}
-      </div>
+            <div className="text-gray-500">
+              Total Items: {items.reduce((sum, item) => sum + item.quantity, 0)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -51,7 +51,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4">
+      <div className="h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4 overflow-hidden">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-3xl shadow-xl border border-white/20 p-8 text-center">
             <div className="bg-green-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -74,7 +74,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4">
+    <div className="h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4 overflow-hidden">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">

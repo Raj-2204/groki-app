@@ -45,6 +45,24 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
   const wakeWordDetectedRef = useRef(false);
   const isListeningForCommandRef = useRef(false);
   const commandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const callbacksRef = useRef({
+    onResult,
+    onError,
+    onStart,
+    onEnd,
+    onWakeWordDetected,
+  });
+
+  // Update callbacks ref when props change
+  useEffect(() => {
+    callbacksRef.current = {
+      onResult,
+      onError,
+      onStart,
+      onEnd,
+      onWakeWordDetected,
+    };
+  }, [onResult, onError, onStart, onEnd, onWakeWordDetected]);
 
   useEffect(() => {
     console.log('useVoiceRecognition useEffect triggered, alwaysListening:', alwaysListening);
@@ -70,7 +88,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
           setIsWaitingForWakeWord(true);
           setIsActivelyListening(false);
         }
-        onStart?.();
+        callbacksRef.current.onStart?.();
       };
 
       recognition.onend = () => {
@@ -92,7 +110,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
           }, 100);
         }
         
-        onEnd?.();
+        callbacksRef.current.onEnd?.();
       };
 
       recognition.onerror = (event: any) => {
@@ -103,11 +121,11 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         
         // Don't restart on certain errors
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          onError?.(`Microphone permission denied. Please allow microphone access.`);
+          callbacksRef.current.onError?.(`Microphone permission denied. Please allow microphone access.`);
           return;
         }
         
-        onError?.(event.error);
+        callbacksRef.current.onError?.(event.error);
         
         // Auto-restart if always listening is enabled and it's not a permission error
         if (alwaysListening && event.error !== 'aborted') {
@@ -152,9 +170,15 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
             console.log('Wake word detected ref:', wakeWordDetectedRef.current);
           }
           
-          const wakeWordDetected = wakeWords.some(wakeWord => 
-            lowerTranscript.includes(wakeWord.toLowerCase())
-          );
+          // More flexible wake word detection with phonetic variations
+          const wakeWordDetected = wakeWords.some(wakeWord => {
+            const lowerWakeWord = wakeWord.toLowerCase();
+            const detected = lowerTranscript.includes(lowerWakeWord);
+            if (detected && currentTranscript.trim()) {
+              console.log(`Wake word "${wakeWord}" detected in transcript: "${currentTranscript}"`);
+            }
+            return detected;
+          });
 
           // Detect wake word from either final or interim results
           if (wakeWordDetected && !wakeWordDetectedRef.current) {
@@ -163,7 +187,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
             isListeningForCommandRef.current = true;
             setIsWaitingForWakeWord(false);
             setIsActivelyListening(true);
-            onWakeWordDetected?.();
+            callbacksRef.current.onWakeWordDetected?.();
             
             // Start 10-second timeout for command
             if (commandTimeoutRef.current) {
@@ -188,10 +212,11 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
           if (wakeWordDetectedRef.current && finalTranscript.trim()) {
             console.log('Processing command after wake word:', finalTranscript);
             
-            // Remove wake word from the command
+            // Remove wake word from the command with word boundary matching
             let command = finalTranscript.trim();
             wakeWords.forEach(wakeWord => {
-              const regex = new RegExp(wakeWord, 'gi');
+              // Use word boundaries to avoid partial matches
+              const regex = new RegExp(`\\b${wakeWord.replace(/\s+/g, '\\s+')}\\b`, 'gi');
               command = command.replace(regex, '').trim();
             });
 
@@ -202,7 +227,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
               // If no command after cleaning, use the full transcript
               const commandToSend = command || finalTranscript.trim();
               console.log('Sending command:', commandToSend);
-              onResult?.(commandToSend);
+              callbacksRef.current.onResult?.(commandToSend);
             }
             
             // Clear the command timeout since we got a command
@@ -222,7 +247,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         } else {
           // Regular mode - process any final transcript
           if (finalTranscript.trim()) {
-            onResult?.(finalTranscript.trim());
+            callbacksRef.current.onResult?.(finalTranscript.trim());
             if (!continuous) {
               recognition.stop();
             }
@@ -231,7 +256,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
       };
     } else {
       setIsSupported(false);
-      onError?.('Speech recognition is not supported in this browser');
+      callbacksRef.current.onError?.('Speech recognition is not supported in this browser');
     }
 
     return () => {
@@ -242,7 +267,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         clearTimeout(commandTimeoutRef.current);
       }
     };
-  }, [language, continuous, alwaysListening, wakeWords, onResult, onError, onStart, onEnd, onWakeWordDetected]);
+  }, [language, continuous, alwaysListening, wakeWords]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening && isSupported) {
@@ -252,10 +277,10 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting recognition:', error);
-        onError?.('Failed to start voice recognition');
+        callbacksRef.current.onError?.('Failed to start voice recognition');
       }
     }
-  }, [isListening, isSupported, onError]);
+  }, [isListening, isSupported]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
