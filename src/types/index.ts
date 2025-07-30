@@ -22,6 +22,7 @@ export interface Recipe {
   availableIngredients: string[];
   missingIngredients: string[];
   canMake: boolean;
+  tips?: string[];
 }
 
 export interface VoiceCommand {

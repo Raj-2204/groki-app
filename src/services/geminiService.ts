@@ -8,18 +8,27 @@ class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
 
   constructor() {
+    console.log('GeminiService constructor - API_KEY available:', !!API_KEY);
     if (API_KEY) {
+      console.log('Initializing GoogleGenerativeAI');
       this.genAI = new GoogleGenerativeAI(API_KEY);
+    } else {
+      console.warn('VITE_GEMINI_API_KEY not found in environment variables');
     }
   }
 
   async parseVoiceCommand(transcript: string): Promise<VoiceCommand> {
+    console.log('parseVoiceCommand called with:', transcript);
+    console.log('Gemini AI available:', !!this.genAI);
+    
     if (!this.genAI) {
+      console.log('No Gemini AI available, using fallback parser');
       return this.fallbackParser(transcript);
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+      console.log('Using Gemini AI to parse command');
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       
       const prompt = `Parse this voice command for a grocery inventory app: "${transcript}"
 
@@ -30,15 +39,32 @@ IMPORTANT: Handle common speech recognition errors:
 
 Extract ONLY the essential information. Focus on:
 1. The action (add/remove/list/recipes)
-2. The food item name (clean food name only - ignore filler words)
+2. The food item name (clean food name only - ignore filler words and units)
 3. The quantity if specified
+4. The unit if specified (separate from item name)
+
+CRITICAL: Separate units from item names. Common units include:
+- Weight: kg, g, grams, kilograms, lbs, pounds, oz, ounces
+- Volume: ml, milliliters, liters, litres, l, cups, tbsp, tablespoons, tsp, teaspoons
+- Count: pieces, items, cans, bottles, bags, boxes
+
+UNIT PARSING EXAMPLES - PAY SPECIAL ATTENTION TO THESE:
+- "add 2 ml of oil" → item: "oil", quantity: 2, unit: "ml"
+- "add 2 liters of oil" → item: "oil", quantity: 2, unit: "liters"  
+- "add 2 litres of oil" → item: "oil", quantity: 2, unit: "liters"
+- "add 3 l of milk" → item: "milk", quantity: 3, unit: "l"
+- "add 500g flour" → item: "flour", quantity: 500, unit: "g"
+- "add 2 kg potatoes" → item: "potatoes", quantity: 2, unit: "kg"
+- "add 3 cups sugar" → item: "sugar", quantity: 3, unit: "cups"
+- "add 2 tbsp vanilla" → item: "vanilla", quantity: 2, unit: "tbsp"
+- "add 5 pieces chicken" → item: "chicken", quantity: 5, unit: "pieces"
 
 Respond with JSON in this exact format:
 {
   "action": "add|remove|update|list|recipes|help",
-  "item": "clean food item name only",
+  "item": "clean food item name only (no units)",
   "quantity": number (if specified, otherwise null),
-  "unit": "unit type (if specified)",
+  "unit": "unit type (if specified, otherwise 'pieces')",
   "raw": "${transcript}"
 }
 
@@ -79,14 +105,20 @@ EXAMPLES OF QUANTITY PARSING:
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
+      console.log('Gemini raw response:', text);
       
       try {
-        return JSON.parse(text);
-      } catch {
+        const parsed = JSON.parse(text);
+        console.log('Gemini parsed result:', parsed);
+        return parsed;
+      } catch (parseError) {
+        console.error('Failed to parse Gemini JSON response:', parseError);
+        console.log('Raw response was:', text);
         return this.fallbackParser(transcript);
       }
     } catch (error) {
       console.error('Gemini parsing error:', error);
+      console.log('Falling back to local parser');
       return this.fallbackParser(transcript);
     }
   }
@@ -108,12 +140,46 @@ EXAMPLES OF QUANTITY PARSING:
       console.log('Speech recognition error corrected:', original, '→', lower);
     }
     
-    // Helper function to clean item names
+    // List of common units
+    const units = ['kg', 'g', 'grams', 'kilograms', 'lbs', 'pounds', 'oz', 'ounces', 
+                   'ml', 'milliliters', 'liters', 'l', 'cups', 'tbsp', 'tablespoons', 
+                   'tsp', 'teaspoons', 'pieces', 'items', 'cans', 'bottles', 'bags', 'boxes'];
+    
+    // Helper function to clean item names and remove units
     const cleanItemName = (itemText: string): string => {
       return itemText
         .replace(/\b(to|from|the|cart|kart|card|inventory|list|my|in|into|put|add|remove|delete|out|of)\b/g, '')
         .trim()
         .replace(/\s+/g, ' ');
+    };
+
+    // Helper function to extract unit and clean item name
+    const extractUnitAndItem = (text: string): { item: string; unit: string } => {
+      // Remove "of" from the text first as it's a connector word
+      const cleanText = text.replace(/\bof\b/gi, ' ').trim();
+      const words = cleanText.split(/\s+/).filter(word => word.length > 0);
+      let foundUnit = 'pieces';
+      const itemWords: string[] = [];
+      
+      console.log('extractUnitAndItem - input:', text, 'cleanText:', cleanText, 'words:', words);
+      
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i].toLowerCase();
+        if (units.includes(word)) {
+          foundUnit = word;
+          console.log('Found unit:', word);
+        } else {
+          itemWords.push(words[i]);
+        }
+      }
+      
+      const finalItem = cleanItemName(itemWords.join(' '));
+      console.log('extractUnitAndItem result - item:', finalItem, 'unit:', foundUnit);
+      
+      return {
+        item: finalItem,
+        unit: foundUnit
+      };
     };
 
     // Helper function to convert word numbers to digits
@@ -142,32 +208,35 @@ EXAMPLES OF QUANTITY PARSING:
       console.log('Fallback parser - trying to parse:', transcript);
       console.log('Converted:', converted);
       
-      // Try explicit add/put commands with quantity words first
-      let match = converted.match(/(?:add|put)\s+(\d+)\s+([a-zA-Z\s]+?)(?:\s+(?:to|into|in)\s+(?:the\s+)?(?:cart|kart|inventory|list))?$/);
+      // Try explicit add/put commands with quantity and potentially units
+      // Pattern: "add 2 ml of oil" or "add 500g flour" or "add 3 cups sugar"
+      let match = converted.match(/(?:add|put)\s+(\d+)\s+(.+?)(?:\s+(?:to|into|in)\s+(?:the\s+)?(?:cart|kart|inventory|list))?$/);
       console.log('Match 1 (add/put with quantity):', match);
       
       if (match) {
-        const itemName = cleanItemName(match[2]);
-        console.log('Parsed - item:', itemName, 'quantity:', match[1]);
+        const { item, unit } = extractUnitAndItem(match[2]);
+        console.log('Parsed with unit extraction - item:', item, 'quantity:', match[1], 'unit:', unit);
         return {
           action: 'add',
-          item: itemName,
+          item: item,
           quantity: parseInt(match[1]),
-          unit: 'pieces',
+          unit: unit,
           raw: transcript,
         };
       }
       
-      // Try implicit commands starting with quantity (like "two bananas")
-      match = converted.match(/^\s*(\d+)\s+([a-zA-Z\s]+?)(?:\s+(?:to|into|in)\s+(?:the\s+)?(?:cart|kart|inventory|list))?$/);
+      // Try implicit commands starting with quantity (like "2 ml oil" or "5 potatoes")
+      match = converted.match(/^\s*(\d+)\s+(.+?)(?:\s+(?:to|into|in)\s+(?:the\s+)?(?:cart|kart|inventory|list))?$/);
+      console.log('Match 2 (implicit with quantity):', match);
       
       if (match) {
-        const itemName = cleanItemName(match[2]);
+        const { item, unit } = extractUnitAndItem(match[2]);
+        console.log('Parsed implicit with unit extraction - item:', item, 'quantity:', match[1], 'unit:', unit);
         return {
           action: 'add',
-          item: itemName,
+          item: item,
           quantity: parseInt(match[1]),
-          unit: 'pieces',
+          unit: unit,
           raw: transcript,
         };
       }
@@ -176,12 +245,12 @@ EXAMPLES OF QUANTITY PARSING:
       match = converted.match(/(?:add|put)\s+([a-zA-Z\s]+?)(?:\s+(?:to|into|in)\s+(?:the\s+)?(?:cart|kart|inventory|list))?$/);
       
       if (match) {
-        const itemName = cleanItemName(match[1]);
+        const { item, unit } = extractUnitAndItem(match[1]);
         return {
           action: 'add',
-          item: itemName,
+          item: item,
           quantity: 1,
-          unit: 'pieces',
+          unit: unit,
           raw: transcript,
         };
       }
@@ -246,45 +315,227 @@ EXAMPLES OF QUANTITY PARSING:
   }
 
   async generateRecipes(inventory: InventoryItem[]): Promise<Recipe[]> {
+    console.log('generateRecipes called with inventory:', inventory);
+    console.log('Gemini AI available for recipes:', !!this.genAI);
+    
     if (!this.genAI) {
+      console.log('No Gemini AI available, using fallback recipes');
       return this.fallbackRecipes(inventory);
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+      console.log('Using Gemini AI to generate recipes');
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       
       const inventoryList = inventory.map(item => `${item.name}: ${item.quantity} ${item.unit}`).join(', ');
+      console.log('Inventory list for recipes:', inventoryList);
       
       const prompt = `Based on this grocery inventory: ${inventoryList}
 
-Generate 3 practical recipe suggestions. For each recipe, analyze which ingredients are available and which are missing.
+Generate 3-5 practical recipe suggestions. For each recipe, analyze which ingredients are available and which are missing.
+
+Requirements:
+1. Prioritize recipes that use the most available ingredients
+2. Include a mix of difficulty levels (easy, medium, hard)
+3. Provide detailed, step-by-step instructions
+4. Be realistic about cooking times
+5. Suggest recipes from different cuisines/meal types
 
 Respond with JSON array:
 [{
   "id": "unique-id",
   "name": "Recipe Name",
-  "description": "Brief description",
-  "ingredients": ["ingredient1", "ingredient2"],
-  "instructions": ["step1", "step2"],
+  "description": "Brief description (1-2 sentences)",
+  "ingredients": ["ingredient1 (amount)", "ingredient2 (amount)"],
+  "instructions": ["detailed step1", "detailed step2", "detailed step3"],
   "cookingTime": 30,
   "servings": 4,
-  "availableIngredients": ["available items"],
-  "missingIngredients": ["missing items"],
-  "canMake": true/false
-}]`;
+  "availableIngredients": ["available items from inventory"],
+  "missingIngredients": ["missing items needed"],
+  "canMake": true/false,
+  "cuisine": "Italian/Asian/American/etc",
+  "difficulty": "Easy/Medium/Hard"
+}]
+
+Focus on making recipes that are practical and achievable with common kitchen equipment.`;
 
       const result = await model.generateContent(prompt);
-      const response = await result.response;
+      const response = result.response;
       const text = response.text();
+      console.log('Recipe generation raw response:', text);
       
       try {
-        return JSON.parse(text);
-      } catch {
+        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const recipes = JSON.parse(cleanText);
+        console.log('Generated recipes:', recipes);
+        return recipes;
+      } catch (parseError) {
+        console.error('Recipe JSON parsing error:', parseError);
+        console.log('Raw response was:', text);
         return this.fallbackRecipes(inventory);
       }
     } catch (error) {
       console.error('Recipe generation error:', error);
+      console.log('Falling back to default recipes');
       return this.fallbackRecipes(inventory);
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateRecipeFromPrompt(prompt: string): Promise<any> {
+    if (!this.genAI) {
+      throw new Error('Gemini AI not available');
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
+      
+      try {
+        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(cleanText);
+      } catch {
+        // If JSON parsing fails, return a fallback response
+        console.error('JSON parsing failed, returning fallback response');
+        return {
+          name: "Custom Recipe",
+          description: "A recipe generated based on your request",
+          cookingTime: 30,
+          servings: 4,
+          ingredients: ["Various ingredients based on your request"],
+          availableIngredients: [],
+          missingIngredients: ["Check the full response for details"],
+          instructions: [text], // Return the raw text as instructions
+          canMake: false,
+          tips: []
+        };
+      }
+    } catch (error) {
+      console.error('Recipe generation from prompt error:', error);
+      throw error;
+    }
+  }
+
+  async generateConversationalResponse(
+    message: string, 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    inventory: any[], 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    conversationHistory: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<{ response: string, actions?: any[] }> {
+    if (!this.genAI) {
+      return {
+        response: "I'm sorry, but I need AI capabilities to have a proper conversation. Please check your API configuration."
+      };
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      
+      const inventoryList = inventory.map(item => `${item.name}: ${item.quantity} ${item.unit}`).join(', ');
+      const recentHistory = conversationHistory.slice(-6).map(msg => 
+        `${msg.isUser ? 'User' : 'Groki'}: ${msg.content}`
+      ).join('\n');
+
+      const prompt = `You are Groki, a friendly and helpful AI grocery assistant. You help users manage their grocery inventory through natural conversation.
+
+CURRENT INVENTORY: ${inventoryList || 'Empty'}
+
+RECENT CONVERSATION:
+${recentHistory}
+
+USER MESSAGE: "${message}"
+
+PERSONALITY GUIDELINES:
+- Be warm, friendly, and conversational like a helpful friend
+- Use natural language, not robotic responses  
+- Show enthusiasm about cooking and food
+- Be proactive in offering suggestions
+- Use casual language and occasional food emojis
+- Remember context from the conversation
+- Make jokes or comments about food when appropriate
+
+CAPABILITIES:
+1. Add items to inventory (with quantities and units)
+2. Remove items from inventory  
+3. Show current inventory
+4. Suggest recipes based on available ingredients
+5. Have general conversations about food, cooking, and groceries
+6. Help with meal planning and shopping advice
+
+RESPONSE FORMAT:
+Respond with a JSON object containing:
+{
+  "response": "Your conversational response as Groki",
+  "actions": [
+    {
+      "type": "add_item|remove_item|show_inventory|show_recipes",
+      "item": "food item name",
+      "quantity": number,
+      "unit": "pieces|kg|g|liters|ml|cups|etc"
+    }
+  ]
+}
+
+EXAMPLES:
+
+User: "Add 2 liters of milk"
+{
+  "response": "Perfect! I've added 2 liters of milk to your inventory 🥛 That should be great for cereal, coffee, or maybe some baking!",
+  "actions": [{"type": "add_item", "item": "milk", "quantity": 2, "unit": "liters"}]
+}
+
+User: "What can I cook with what I have?"
+{
+  "response": "Let me check what delicious meals we can whip up with your current ingredients! 👨‍🍳",
+  "actions": [{"type": "show_recipes"}]
+}
+
+User: "I'm out of eggs"
+{
+  "response": "Oh no! Running out of eggs is always a bummer 🥚 Should I remove them from your inventory, or do you want me to add some to your shopping list?",
+  "actions": [{"type": "remove_item", "item": "eggs"}]
+}
+
+User: "How are you doing?"
+{
+  "response": "I'm doing great, thanks for asking! 😊 I'm excited to help you with your grocery adventures today. Got any cooking plans or need help organizing your pantry?"
+}
+
+IMPORTANT PARSING RULES:
+- Handle natural language for quantities (two, three, a couple, some, etc.)
+- Understand implied actions ("I'm out of X" = remove X, "I bought Y" = add Y)
+- Recognize units properly (liters, litres, kg, pounds, cups, etc.)
+- Be conversational even when performing actions
+- Ask clarifying questions when needed
+
+Now respond to the user's message with personality and appropriate actions!`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
+      
+      try {
+        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const parsed = JSON.parse(cleanText);
+        console.log('Conversational AI response:', parsed);
+        return parsed;
+      } catch (parseError) {
+        console.error('Failed to parse conversational response:', parseError);
+        // Return a fallback conversational response
+        return {
+          response: "I heard you! Let me think about that for a moment... Could you rephrase what you'd like me to help you with? I'm here to help with your grocery inventory! 🛒"
+        };
+      }
+    } catch (error) {
+      console.error('Conversational AI error:', error);
+      return {
+        response: "Sorry, I'm having trouble processing that right now. But I'm still here to help with your groceries! What would you like to do? 😊"
+      };
     }
   }
 

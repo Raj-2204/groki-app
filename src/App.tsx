@@ -1,14 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Mic, ShoppingCart, Brain, Volume2, LogOut, User, Sparkles } from 'lucide-react';
 import { InventoryList } from './components/InventoryList';
 import { ChatInterface } from './components/ChatInterface';
+import { RecipeSuggestions } from './components/RecipeSuggestions';
+import { RecipeDetailPage } from './components/RecipeDetailPage';
+import { TabNavigation, type TabType } from './components/TabNavigation';
 import { AuthPage } from './components/AuthPage';
 import { useInventoryStore } from './store/inventoryStore';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import type { Recipe } from './types';
 
 function MainApp() {
   const { getItemCount, initializeStore, clearStore } = useInventoryStore();
   const { user, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('inventory');
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   // Initialize store when user logs in
   React.useEffect(() => {
@@ -21,6 +27,16 @@ function MainApp() {
       clearStore();
     };
   }, [user?.id, initializeStore, clearStore]);
+
+  // If a recipe is selected, show the recipe detail page
+  if (selectedRecipe) {
+    return (
+      <RecipeDetailPage 
+        recipe={selectedRecipe}
+        onBack={() => setSelectedRecipe(null)}
+      />
+    );
+  }
 
   return (
     <div className="h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 relative overflow-hidden flex flex-col">
@@ -72,16 +88,30 @@ function MainApp() {
 
       {/* Main Content - Flex 1 to fill remaining space */}
       <main className="relative flex-1 max-w-7xl mx-auto px-3 py-2 overflow-hidden">
-        {/* Chat and Inventory Side by Side - Fill remaining height */}
+        {/* Chat and Content Side by Side - Fill remaining height */}
         <div className="flex flex-row gap-4 h-full">
           {/* Chat Section */}
           <div className="w-1/2 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <ChatInterface />
           </div>
 
-          {/* Inventory Section */}
-          <div className="w-1/2 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <InventoryList />
+          {/* Content Section with Tabs */}
+          <div className="w-1/2 flex flex-col animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            {/* Tab Navigation */}
+            <TabNavigation 
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              itemCount={getItemCount()}
+            />
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === 'inventory' ? (
+                <InventoryList />
+              ) : (
+                <RecipeSuggestions onRecipeSelect={setSelectedRecipe} />
+              )}
+            </div>
           </div>
         </div>
       </main>

@@ -4,7 +4,9 @@ import type { VoiceRecognitionOptions } from '../types';
 // Extend Window interface for browser compatibility
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     SpeechRecognition: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     webkitSpeechRecognition: any;
   }
 }
@@ -41,6 +43,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
   const [isWaitingForWakeWord, setIsWaitingForWakeWord] = useState(false);
   const [isActivelyListening, setIsActivelyListening] = useState(false);
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const wakeWordDetectedRef = useRef(false);
   const isListeningForCommandRef = useRef(false);
@@ -113,6 +116,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         callbacksRef.current.onEnd?.();
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
@@ -139,6 +143,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         }
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
         let finalTranscript = '';
         let interimTranscript = '';
@@ -267,7 +272,7 @@ export function useVoiceRecognition(options: VoiceRecognitionOptions = {}): UseV
         clearTimeout(commandTimeoutRef.current);
       }
     };
-  }, [language, continuous, alwaysListening, wakeWords]);
+  }, [language, continuous, alwaysListening, wakeWords, isSupported]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening && isSupported) {

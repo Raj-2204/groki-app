@@ -1,8 +1,8 @@
-import React from 'react';
-import { Trash2, Package, AlertTriangle, Apple, Beef, Milk, Wheat, Salad, Edit3, Calendar, Hash } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, Package, AlertTriangle, Apple, Beef, Milk, Wheat, Salad, Edit3, Calendar, Plus, Minus } from 'lucide-react';
 import { useInventoryStore } from '../store/inventoryStore';
 
-const categoryIcons: Record<string, React.ComponentType<any>> = {
+const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   'Fruits': Apple,
   'Vegetables': Salad,
   'Dairy': Milk,
@@ -22,8 +22,15 @@ const categoryColors: Record<string, string> = {
   'Other': 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
+const commonUnits = [
+  'pieces', 'cups', 'kg', 'g', 'lbs', 'oz', 'liters', 'ml', 
+  'tbsp', 'tsp', 'cans', 'bottles', 'bags', 'boxes'
+];
+
 export function InventoryList() {
-  const { items, removeItem, loading } = useInventoryStore();
+  const { items, removeItem, updateItem, addItem, loading } = useInventoryStore();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({ name: '', quantity: 1, unit: 'pieces' });
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { 
@@ -36,6 +43,35 @@ export function InventoryList() {
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       await removeItem(id);
+    }
+  };
+
+  const handleQuantityChange = async (id: string, newQuantity: number) => {
+    if (newQuantity > 0) {
+      await updateItem(id, { quantity: newQuantity });
+    }
+  };
+
+  const handleUnitChange = async (id: string, newUnit: string) => {
+    await updateItem(id, { unit: newUnit });
+  };
+
+  const incrementQuantity = (id: string, currentQuantity: number) => {
+    handleQuantityChange(id, currentQuantity + 1);
+  };
+
+  const decrementQuantity = (id: string, currentQuantity: number) => {
+    if (currentQuantity > 1) {
+      handleQuantityChange(id, currentQuantity - 1);
+    }
+  };
+
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newItem.name.trim()) {
+      await addItem(newItem.name.trim(), newItem.quantity, newItem.unit);
+      setNewItem({ name: '', quantity: 1, unit: 'pieces' });
+      setShowAddForm(false);
     }
   };
 
@@ -55,11 +91,81 @@ export function InventoryList() {
               </p>
             </div>
           </div>
-          <div className="bg-white/20 px-2 py-0.5 rounded-full">
-            <span className="text-xs font-medium">{items.length}</span>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors flex items-center space-x-1"
+            >
+              <Plus className="w-3 h-3" />
+              <span className="text-xs font-medium">Add</span>
+            </button>
+            <div className="bg-white/20 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-medium">{items.length}</span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Quick Add Form */}
+      {showAddForm && (
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+          <form onSubmit={handleAddItem} className="flex items-center space-x-3">
+            <input
+              type="text"
+              placeholder="Item name (e.g., Apples)"
+              value={newItem.name}
+              onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              autoFocus
+            />
+            <div className="flex items-center bg-white rounded-lg border border-gray-300">
+              <button
+                type="button"
+                onClick={() => setNewItem({...newItem, quantity: Math.max(1, newItem.quantity - 1)})}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-l-lg transition-colors"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <input
+                type="number"
+                value={newItem.quantity}
+                onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value) || 1})}
+                className="w-16 text-center text-sm font-semibold bg-transparent border-none focus:outline-none"
+                min="1"
+              />
+              <button
+                type="button"
+                onClick={() => setNewItem({...newItem, quantity: newItem.quantity + 1})}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-r-lg transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+            <select
+              value={newItem.unit}
+              onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+            >
+              {commonUnits.map(unit => (
+                <option key={unit} value={unit}>{unit}</option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              className="px-3 py-2 text-gray-500 hover:text-gray-700 transition-colors text-sm"
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Table Container */}
       <div className="flex-1 overflow-hidden flex flex-col">
@@ -144,13 +250,40 @@ export function InventoryList() {
                         </span>
                       </td>
 
-                      {/* Quantity */}
+                      {/* Quantity Controls */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
-                          <Hash className="w-4 h-4 text-gray-400" />
-                          <span className={`text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-gray-900'}`}>
-                            {item.quantity}
-                          </span>
+                          <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200">
+                            <button
+                              onClick={() => decrementQuantity(item.id, item.quantity)}
+                              disabled={item.quantity <= 1}
+                              className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-l-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
+                              className="w-12 text-center text-sm font-semibold bg-transparent border-none focus:outline-none"
+                              min="1"
+                            />
+                            <button
+                              onClick={() => incrementQuantity(item.id, item.quantity)}
+                              className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-r-lg transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <select
+                            value={item.unit}
+                            onChange={(e) => handleUnitChange(item.id, e.target.value)}
+                            className="text-xs bg-white border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                          >
+                            {commonUnits.map(unit => (
+                              <option key={unit} value={unit}>{unit}</option>
+                            ))}
+                          </select>
                         </div>
                       </td>
 

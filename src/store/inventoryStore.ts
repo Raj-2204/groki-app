@@ -272,6 +272,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     if (!user_id) return;
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dbUpdates: any = {
         updated_at: new Date().toISOString()
       };

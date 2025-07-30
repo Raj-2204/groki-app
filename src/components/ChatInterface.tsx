@@ -42,7 +42,7 @@ function MiniVoiceButton({ alwaysListening, onAlwaysListeningChange }: {
   onAlwaysListeningChange: (enabled: boolean) => void;
 }) {
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
-  const { addItem, reduceItemQuantity, addMessage } = useInventoryStore();
+  const { items, addItem, reduceItemQuantity, addMessage, messages } = useInventoryStore();
 
   const {
     isListening,
@@ -64,51 +64,57 @@ function MiniVoiceButton({ alwaysListening, onAlwaysListeningChange }: {
       try {
         // Add user message to chat
         await addMessage(text, true, true);
-        
-        // Parse the command using Gemini AI
-        const command = await geminiService.parseVoiceCommand(text);
-        
-        let responseMessage = '';
-        
-        switch (command.action) {
-          case 'add':
-            if (command.item && command.quantity) {
-              await addItem(command.item, command.quantity, command.unit || 'pieces');
-              responseMessage = `Added ${command.quantity} ${command.item} to your inventory!`;
-            } else {
-              responseMessage = "I couldn't understand what item to add. Try saying 'add 3 apples'.";
+
+        // Get conversational response from Gemini
+        const result = await geminiService.generateConversationalResponse(
+          text, 
+          items, 
+          messages
+        );
+
+        // Process any actions
+        if (result.actions && result.actions.length > 0) {
+          for (const action of result.actions) {
+            switch (action.type) {
+              case 'add_item':
+                if (action.item && action.quantity) {
+                  await addItem(action.item, action.quantity, action.unit || 'pieces');
+                }
+                break;
+              case 'remove_item':
+                if (action.item) {
+                  try {
+                    await reduceItemQuantity(action.item, action.quantity || null);
+                  } catch (error) {
+                    console.error('Could not remove item:', error);
+                  }
+                }
+                break;
+              case 'show_recipes':
+                // Generate and display recipes in the conversation
+                try {
+                  console.log('User wants to see recipes, generating...');
+                  const recipes = await geminiService.generateRecipes(items);
+                  if (recipes && recipes.length > 0) {
+                    const recipeList = recipes.slice(0, 3).map((recipe, index) => 
+                      `${index + 1}. **${recipe.name}** (${recipe.cookingTime} min)\n   ${recipe.description}`
+                    ).join('\n\n');
+                    await addMessage(`Here are some delicious recipes I found for you! 🍳\n\n${recipeList}\n\nClick on the Recipes tab to see full details and cooking instructions! 👨‍🍳`, false);
+                  }
+                } catch (error) {
+                  console.error('Error generating recipes in chat:', error);
+                }
+                break;
+              case 'show_inventory':
+                // This could highlight the inventory
+                console.log('User wants to see inventory');
+                break;
             }
-            break;
-            
-          case 'remove':
-            if (command.item) {
-              try {
-                await reduceItemQuantity(command.item, command.quantity);
-                const quantityText = command.quantity ? `${command.quantity} ` : '';
-                responseMessage = `Removed ${quantityText}${command.item} from your inventory.`;
-              } catch (error) {
-                responseMessage = `I couldn't find ${command.item} in your inventory.`;
-              }
-            } else {
-              responseMessage = "I couldn't understand what item to remove. Try saying 'remove milk' or 'remove 2 apples'.";
-            }
-            break;
-            
-          case 'list':
-            responseMessage = "Here's your current inventory. Check the list on the right!";
-            break;
-            
-          case 'recipes':
-            responseMessage = "Let me suggest some recipes based on your ingredients!";
-            break;
-            
-          default:
-            responseMessage = "I can help you add items, remove items, show your inventory, or suggest recipes. What would you like to do?";
+          }
         }
-        
-        // Add assistant response to chat
-        await addMessage(responseMessage, false);
-        
+
+        // Add Groki's response to chat
+        await addMessage(result.response, false);
       } catch (error) {
         console.error('Error processing voice command:', error);
         await addMessage("Sorry, I had trouble processing that command. Please try again.", false);
@@ -167,7 +173,7 @@ function MiniVoiceButton({ alwaysListening, onAlwaysListeningChange }: {
       console.log('Stopping listening due to always listening toggle');
       stopListening();
     }
-  }, [alwaysListening]);
+  }, [alwaysListening, startListening, stopListening, isListening]);
 
   if (!isSupported) {
     return (
@@ -214,7 +220,7 @@ function MiniVoiceButton({ alwaysListening, onAlwaysListeningChange }: {
 }
 
 export function ChatInterface() {
-  const { messages, addItem, reduceItemQuantity, addMessage } = useInventoryStore();
+  const { messages, items, addItem, reduceItemQuantity, addMessage } = useInventoryStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -228,6 +234,76 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  // Add welcome message when component first loads and no messages exist
+  useEffect(() => {
+    if (messages.length === 0) {
+      const welcomeMessage = "Hey there! 👋 I'm Groki, your friendly grocery assistant! I can help you manage your inventory, suggest recipes, and chat about food. Try saying something like 'add 2 liters of milk' or 'what can I cook?' - I'm here to make your grocery management fun and easy! 🛒✨";
+      addMessage(welcomeMessage, false);
+    }
+  }, [messages.length, addMessage]);
+
+  const processConversationalResponse = async (userMessage: string, isVoice: boolean = false) => {
+    try {
+      // Add user message to chat
+      await addMessage(userMessage, true, isVoice);
+
+      // Get conversational response from Gemini
+      const result = await geminiService.generateConversationalResponse(
+        userMessage, 
+        items, 
+        messages
+      );
+
+      // Process any actions
+      if (result.actions && result.actions.length > 0) {
+        for (const action of result.actions) {
+          switch (action.type) {
+            case 'add_item':
+              if (action.item && action.quantity) {
+                await addItem(action.item, action.quantity, action.unit || 'pieces');
+              }
+              break;
+            case 'remove_item':
+              if (action.item) {
+                try {
+                  await reduceItemQuantity(action.item, action.quantity || null);
+                } catch (error) {
+                  console.error('Could not remove item:', error);
+                }
+              }
+              break;
+            case 'show_recipes':
+              // Generate and display recipes in the conversation
+              try {
+                console.log('User wants to see recipes, generating...');
+                const recipes = await geminiService.generateRecipes(items);
+                if (recipes && recipes.length > 0) {
+                  const recipeList = recipes.slice(0, 3).map((recipe, index) => 
+                    `${index + 1}. **${recipe.name}** (${recipe.cookingTime} min)\n   ${recipe.description}`
+                  ).join('\n\n');
+                  await addMessage(`Here are some delicious recipes I found for you! 🍳\n\n${recipeList}\n\nClick on the Recipes tab to see full details and cooking instructions! 👨‍🍳`, false);
+                }
+              } catch (error) {
+                console.error('Error generating recipes in chat:', error);
+              }
+              break;
+            case 'show_inventory':
+              // This could highlight the inventory
+              console.log('User wants to see inventory');
+              break;
+          }
+        }
+      }
+
+      // Add Groki's response to chat
+      await addMessage(result.response, false);
+
+    } catch (error) {
+      console.error('Error processing conversational message:', error);
+      await addMessage("Sorry, I'm having trouble understanding that right now. Could you try rephrasing? I'm here to help with your groceries! 😊", false);
+    }
+  };
+
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || isProcessing) return;
@@ -237,53 +313,7 @@ export function ChatInterface() {
     setIsProcessing(true);
 
     try {
-      // Add user message to chat
-      await addMessage(message, true, false);
-      
-      // Parse the command using Gemini AI
-      const command = await geminiService.parseVoiceCommand(message);
-      
-      let responseMessage = '';
-      
-      switch (command.action) {
-        case 'add':
-          if (command.item && command.quantity) {
-            await addItem(command.item, command.quantity, command.unit || 'pieces');
-            responseMessage = `Added ${command.quantity} ${command.item} to your inventory!`;
-          } else {
-            responseMessage = "I couldn't understand what item to add. Try saying 'add 3 apples'.";
-          }
-          break;
-          
-        case 'remove':
-          if (command.item) {
-            try {
-              await reduceItemQuantity(command.item, command.quantity);
-              const quantityText = command.quantity ? `${command.quantity} ` : '';
-              responseMessage = `Removed ${quantityText}${command.item} from your inventory.`;
-            } catch (error) {
-              responseMessage = `I couldn't find ${command.item} in your inventory.`;
-            }
-          } else {
-            responseMessage = "I couldn't understand what item to remove. Try typing 'remove milk' or 'remove 2 apples'.";
-          }
-          break;
-          
-        case 'list':
-          responseMessage = "Here's your current inventory. Check the list on the right!";
-          break;
-          
-        case 'recipes':
-          responseMessage = "Let me suggest some recipes based on your ingredients!";
-          break;
-          
-        default:
-          responseMessage = "I can help you add items, remove items, show your inventory, or suggest recipes. What would you like to do?";
-      }
-      
-      // Add assistant response to chat
-      await addMessage(responseMessage, false);
-      
+      await processConversationalResponse(message, false);
     } catch (error) {
       console.error('Error processing text command:', error);
       await addMessage("Sorry, I had trouble processing that command. Please try again.", false);
@@ -315,11 +345,11 @@ export function ChatInterface() {
       </div>
 
       {/* Enhanced Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.map((message, index) => (
           <div
             key={message.id}
-            className={clsx('flex animate-slide-up', {
+            className={clsx('flex animate-slide-up transform transition-all duration-300', {
               'justify-end': message.isUser,
               'justify-start': !message.isUser,
             })}
