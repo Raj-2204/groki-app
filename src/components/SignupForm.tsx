@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, Loader2, Mic, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { clsx } from 'clsx';
+import './auth-forms.css';
 
 interface SignupFormProps {
   onSwitchToLogin: () => void;
@@ -51,22 +51,26 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
 
   if (success) {
     return (
-      <div className="h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4 overflow-hidden">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-3xl shadow-xl border border-white/20 p-8 text-center">
-            <div className="bg-green-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Created!</h2>
-            <p className="text-gray-600 mb-6">
-              Your account has been created successfully. You can now sign in to start using your Voice Grocery Assistant.
-            </p>
-            <button
-              onClick={onSwitchToLogin}
-              className="w-full py-3 px-4 rounded-xl font-medium bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:from-primary-600 hover:to-accent-600 transform hover:scale-105 shadow-lg hover:shadow-xl transition-all duration-200"
-            >
-              Go to Sign In
+      <div style={{ textAlign: 'center', padding: '64px 0' }}>
+        <div className="success-container">
+          <CheckCircle size={48} style={{ color: '#00d4ff', marginBottom: '20px' }} />
+          <h2 style={{ color: '#fff', fontSize: '24px', marginBottom: '16px' }}>Account Created!</h2>
+          <p style={{ color: '#ccc', marginBottom: '24px' }}>
+            Your account has been created successfully. You can now sign in to start using your Voice Grocery Assistant.
+          </p>
+          <div className="block-cube block-cube-hover">
+            <button onClick={onSwitchToLogin} className="btn">
+              <div className="text">Go to Sign In</div>
             </button>
+            <div className="bg-top">
+              <div className="bg-inner"></div>
+            </div>
+            <div className="bg-right">
+              <div className="bg-inner"></div>
+            </div>
+            <div className="bg">
+              <div className="bg-inner"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -74,155 +78,156 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4 overflow-hidden">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-primary-500 to-accent-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Mic className="w-8 h-8 text-white" />
+    <div>
+      <h1>Create Account</h1>
+      <form onSubmit={handleSubmit} className="form">
+        {/* Email Field */}
+        <div className="control block-cube block-input">
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="Email Address"
+          />
+          <div className="bg-top">
+            <div className="bg-inner"></div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-600">Join your Voice Grocery Assistant</p>
+          <div className="bg-right">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg">
+            <div className="bg-inner"></div>
+          </div>
         </div>
 
-        {/* Signup Form */}
-        <div className="bg-white rounded-3xl shadow-xl border border-white/20 p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  placeholder="Enter your email"
-                />
-              </div>
-            </div>
+        {/* Password Field */}
+        <div className="control block-cube block-input">
+          <input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="Password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              zIndex: 10
+            }}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+          <div className="bg-top">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg-right">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg">
+            <div className="bg-inner"></div>
+          </div>
+        </div>
 
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
-            </div>
+        {/* Confirm Password Field */}
+        <div className="control block-cube block-input">
+          <input
+            id="confirmPassword"
+            type={showConfirmPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            placeholder="Confirm Password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              zIndex: 10
+            }}
+          >
+            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+          <div className="bg-top">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg-right">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg">
+            <div className="bg-inner"></div>
+          </div>
+        </div>
 
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
-            </div>
+        {/* Error Message */}
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
 
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
-
-            {/* Sign Up Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={clsx(
-                'w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2',
-                {
-                  'bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:from-primary-600 hover:to-accent-600 transform hover:scale-105 shadow-lg hover:shadow-xl': !loading,
-                  'bg-gray-400 text-gray-200 cursor-not-allowed': loading,
-                }
-              )}
-            >
+        {/* Sign Up Button */}
+        <div className="block-cube block-cube-hover">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn"
+          >
+            <div className="text">
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Creating Account...</span>
+                  <Loader2 className="w-5 h-5 animate-spin" style={{ display: 'inline-block', marginRight: '8px' }} />
+                  Creating Account...
                 </>
               ) : (
-                <span>Create Account</span>
+                'Create Account'
               )}
-            </button>
-          </form>
-
-          {/* Switch to Login */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <button
-                onClick={onSwitchToLogin}
-                className="text-primary-600 hover:text-primary-700 font-medium transition-colors"
-              >
-                Sign in here
-              </button>
-            </p>
+            </div>
+          </button>
+          <div className="bg-top">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg-right">
+            <div className="bg-inner"></div>
+          </div>
+          <div className="bg">
+            <div className="bg-inner"></div>
           </div>
         </div>
+      </form>
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-500 text-sm">
-            Secure authentication powered by Supabase
-          </p>
-        </div>
+      {/* Switch to Login */}
+      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        <span>Already have an account? </span>
+        <button
+          onClick={onSwitchToLogin}
+          className="auth-link"
+        >
+          Sign in here
+        </button>
+      </div>
+
+      <div className="credits">
+        <a href="#">Secure authentication powered by Supabase</a>
       </div>
     </div>
   );
