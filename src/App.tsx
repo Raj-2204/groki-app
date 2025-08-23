@@ -88,7 +88,7 @@ function MainApp() {
       </header>
 
       {/* Main Content - Flex 1 to fill remaining space */}
-      <main className="relative flex-1 max-w-7xl mx-auto px-3 py-2 overflow-hidden app-main">
+      <main className="relative flex-1 max-w-7xl mx-auto px-3 py-2 app-main">
         {/* Chat and Content Side by Side - Fill remaining height */}
         <div className="flex flex-row gap-4 h-full">
           {/* Chat Section */}

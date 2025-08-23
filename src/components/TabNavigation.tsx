@@ -44,6 +44,11 @@ export function TabNavigation({ activeTab, onTabChange, itemCount }: TabNavigati
                 'text-gray-600 hover:text-gray-800 hover:bg-gray-50': !isActive,
               }
             )}
+            style={isActive ? { 
+              background: tab.id === 'inventory' 
+                ? 'linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(52,9,121,1) 37%, rgba(0,212,255,1) 94%)'
+                : 'linear-gradient(90deg, rgba(251,113,133,1) 0%, rgba(239,68,68,1) 50%, rgba(220,38,38,1) 100%)'
+            } : {}}
           >
             <div className={clsx('p-2 rounded-lg transition-all duration-300', {
               'bg-white/20': isActive,

@@ -323,7 +323,7 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 flex flex-col h-full hover:shadow-2xl transition-all duration-300">
+    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 chat-container hover:shadow-2xl transition-all duration-300">
       {/* Compact Header */}
       <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500 text-white px-3 py-2 rounded-t-3xl relative overflow-hidden">
         <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
@@ -345,7 +345,7 @@ export function ChatInterface() {
       </div>
 
       {/* Enhanced Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+      <div className="chat-messages p-4 space-y-4 custom-scrollbar">
         {messages.map((message, index) => (
           <div
             key={message.id}

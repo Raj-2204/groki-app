@@ -76,7 +76,7 @@ export function InventoryList() {
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
+    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 inventory-container hover:shadow-2xl transition-all duration-300">
       {/* Compact Header */}
       <div className="bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500 text-white px-3 py-2">
         <div className="flex items-center justify-between">
@@ -190,7 +190,7 @@ export function InventoryList() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-x-auto overflow-y-auto">
+          <div className="inventory-table-container custom-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -251,34 +251,34 @@ export function InventoryList() {
                       </td>
 
                       {/* Quantity Controls */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center space-x-1">
+                          <div className="flex items-center bg-gray-800 rounded border border-gray-700">
                             <button
                               onClick={() => decrementQuantity(item.id, item.quantity)}
                               disabled={item.quantity <= 1}
-                              className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-l-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="p-0.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-l disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-2.5 h-2.5" />
                             </button>
                             <input
                               type="number"
                               value={item.quantity}
                               onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
-                              className="w-12 text-center text-sm font-semibold bg-transparent border-none focus:outline-none"
+                              className="w-8 text-center text-xs font-semibold text-white bg-transparent border-none focus:outline-none"
                               min="1"
                             />
                             <button
                               onClick={() => incrementQuantity(item.id, item.quantity)}
-                              className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-r-lg transition-colors"
+                              className="p-0.5 text-gray-300 hover:text-white hover:bg-gray-700 rounded-r transition-colors"
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-2.5 h-2.5" />
                             </button>
                           </div>
                           <select
                             value={item.unit}
                             onChange={(e) => handleUnitChange(item.id, e.target.value)}
-                            className="text-xs bg-white border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            className="text-xs bg-white border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 max-w-16"
                           >
                             {commonUnits.map(unit => (
                               <option key={unit} value={unit}>{unit}</option>
